@@ -1,0 +1,101 @@
+import { useState, useRef, useEffect } from 'react'
+
+function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
+  const [input, setInput] = useState('')
+  const messagesEndRef = useRef(null)
+
+  // 自动滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!input.trim() || loading) return
+    onSendMessage(input.trim())
+    setInput('')
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
+
+  if (!currentAgent) {
+    return (
+      <div className="chat-window">
+        <div className="empty-state">
+          <span style={{ fontSize: '48px' }}>🤖</span>
+          <p>请选择一个角色开始对话</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="chat-window">
+      <div className="messages">
+        {/* 欢迎消息 */}
+        {messages.length === 0 && (
+          <div className="message assistant">
+            <div className="message-header">
+              <span>{currentAgent.icon}</span>
+              <span>{currentAgent.name}</span>
+            </div>
+            你好！我是 {currentAgent.name}，{currentAgent.title}。
+            {currentAgent.whenToUse && `\n\n我可以帮你：${currentAgent.whenToUse}`}
+            有什么我可以帮你的吗？
+          </div>
+        )}
+
+        {/* 历史消息 */}
+        {messages.map((msg, index) => (
+          <div key={index} className={`message ${msg.role}`}>
+            {msg.role === 'assistant' && (
+              <div className="message-header">
+                <span>{currentAgent.icon}</span>
+                <span>{currentAgent.name}</span>
+              </div>
+            )}
+            {msg.content}
+          </div>
+        ))}
+
+        {/* 加载中 */}
+        {loading && (
+          <div className="message assistant">
+            <div className="message-header">
+              <span>{currentAgent.icon}</span>
+              <span>{currentAgent.name}</span>
+            </div>
+            <div className="typing">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form className="input-area" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={`向 ${currentAgent.name} 提问...`}
+          disabled={loading}
+        />
+        <button type="submit" disabled={!input.trim() || loading}>
+          发送
+        </button>
+      </form>
+    </div>
+  )
+}
+
+export default ChatWindow

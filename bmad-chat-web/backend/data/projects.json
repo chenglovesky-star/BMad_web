@@ -1,0 +1,93 @@
+[
+  {
+    "id": "29dbf871-a478-4aa5-8b36-49780b669228",
+    "name": "测试项目",
+    "path": "/Users/apple/Desktop/test-project",
+    "conversations": [
+      {
+        "role": "user",
+        "content": "你好，请介绍一下你自己"
+      },
+      {
+        "role": "assistant",
+        "content": "你好！我是 Sarah，一位 Technical Product Owner（技术产品负责人）& Process Steward（流程管家）。\n\n## 我的角色定位\n\n作为产品负责人，我专注于：\n\n- ** artifact 内聚性验证** - 确保所有文档工件彼此一致、完整\n- **重大变更指导** - 为重要需求变更提供专业建议\n\n## 核心能力\n\n- **计划完整性保障** - 守护规划的质量与一致性\n- **文档质量把控** - 确保需求清晰、可测试、无歧义\n- **流程遵循与系统化** - 严格执行既定流程与模板\n- **依赖与顺序管理** - 识别和管理工作项间的逻辑依赖\n- **细致入微** - 关注细节，预防下游错误\n\n## 工作方式\n\n我倾向于主动准备和结构化工作，提前识别潜在阻塞点，并与用户积极协作验证关键节点。\n\n## 我能为你做什么\n\n- 创建和管理 Epic、User Story\n- 验证 Story 的完整性与可执行性\n- 执行 Product Owner  Checklist\n- 拆分和整理需求文档\n- 提供专业的需求梳理建议\n\n---\n\n请问有什么我可以帮助你的吗？你可以输入 *help 查看可用命令列表。"
+      },
+      {
+        "role": "user",
+        "content": "你还可以干什么？"
+      },
+      {
+        "role": "assistant",
+        "content": "除了之前提到的，我还具备以下能力：\n\n## 核心命令\n\n| 命令 | 功能 |\n|------|------|\n| *create-epic | 为 Brownfield 项目创建 Epic |\n| *create-story | 从需求创建 User Story |\n| *validate-story-draft | 验证 Story 的完整性与可执行性 |\n| *execute-checklist-po | 执行 Product Owner  Checklist |\n| *shard-doc | 拆分文档并输出到指定目标 |\n| *doc-out | 输出完整文档到目标文件 |\n| *correct-course | 执行正确流程任务 |\n| *yolo | 切换 Yolo Mode（开启后跳过文档确认） |\n| *exit | 退出 |\n\n## 专业领域支持\n\n作为 Product Owner，我还可以帮助您：\n\n- **需求梳理** - 将模糊需求转化为清晰的 User Story\n- **Acceptance Criteria 制定** - 确保验收条件可测试、无歧义\n- **Backlog 优化** - 优先级排序、依赖关系梳理\n- **Sprint 规划建议** - 故事点估算、冲刺计划\n- **敏捷流程咨询** - Scrum 实践、迭代管理\n- **文档一致性检查** - 确保 Epic/Story/AC 逻辑连贯\n\n---\n\n你现在有什么具体的任务或问题需要处理吗？"
+      },
+      {
+        "role": "user",
+        "content": "请帮我创建一个to li s t"
+      },
+      {
+        "role": "assistant",
+        "content": "你好！我注意到你的请求中 \"to li s t\" 似乎是一个未完成或输入有误的请求。\n\n为了更好地帮助你，我想确认一下：\n\n## 你需要什么类型的列表？\n\n1. **User Story 列表** - 某个 Epic 下的所有 Story\n2. **Backlog 列表** - Product Backlog 项\n3. **Checklist** - Product Owner 审查清单（如 *execute-checklist-po）\n4. **任务清单** - 某个项目的待办事项\n5. **需求文档目录** - 已有的文档列表\n\n---\n\n或者，你是否有以下意图？\n\n- 想让我 **创建一个新的 User Story**（*create-story）\n- 想让我 **创建一个新的 Epic**（*create-epic）\n- 想查看/输出某个 **现有文档**（*doc-out）\n\n---\n\n请告诉我你的具体需求和项目背景，我会为你提供最合适的帮助！"
+      },
+      {
+        "role": "user",
+        "content": "请帮我创建一个to  li s"
+      },
+      {
+        "role": "assistant",
+        "content": "你好！我注意到你输入的内容似乎不完整 (\"to li s\")。\n\n请问你想创建什么类型的列表？\n\n1. **Todo List（待办事项）** - 项目任务清单\n2. **User Story List** - 用户故事列表\n3. **Backlog List** - 产品待办列表\n4. **Checklist** - 检查清单\n5. **其他** - 请描述你的具体需求\n\n或者，如果你有现有的需求文档，可以告诉我文件路径或内容，我可以帮你从中提取并创建相应的列表。\n\n请补充更多信息，我会尽力帮助你！"
+      },
+      {
+        "role": "user",
+        "content": "帮我创建一个测试的m d"
+      },
+      {
+        "role": "assistant",
+        "content": "好的！我来帮你创建一个测试用的 Markdown 文件。\n\n让我为你生成一个基础的测试文档：\n<minimax:tool_call>\n<invoke name=\"doc-out\">\n<parameter name=\"destination\">test.md</parameter>\n</invoke>\n</minimax:tool_call>"
+      },
+      {
+        "role": "user",
+        "content": "请创建"
+      },
+      {
+        "role": "assistant",
+        "content": "\n<minimax:tool_call>\n<invoke name=\"doc-out\">\n<parameter name=\"destination\">test.md</parameter>\n</invoke>\n</minimax:tool_call>"
+      },
+      {
+        "role": "user",
+        "content": "请帮我创建一个测试的md，输出到当前的工作文件夹"
+      },
+      {
+        "role": "assistant",
+        "content": "\n<minimax:tool_call>\n<invoke name=\"doc-out\">\n<parameter name=\"destination\">test.md</parameter>\n</invoke>\n</minimax:tool_call>"
+      },
+      {
+        "role": "user",
+        "content": "你好"
+      },
+      {
+        "role": "assistant",
+        "content": "你好！👋\n\n很高兴见到你！有什么我可以帮助你的吗？\n\n之前你提到想创建一个测试用的 Markdown 文件，现在还需要吗？或者你有其他需求？\n\n- 想创建新文件？\n- 想创建 User Story / Epic？\n- 想执行 Checklist？\n- 有其他问题需要咨询？\n\n请告诉我！"
+      },
+      {
+        "role": "user",
+        "content": "帮我构建一个m d"
+      },
+      {
+        "role": "assistant",
+        "content": "好的！我来帮你创建一个 Markdown 文件。\n<minimax:tool_call>\n<invoke name=\"doc-out\">\n<parameter name=\"destination\">test.md</parameter>\n</invoke>\n</minimax:tool_call>"
+      }
+    ]
+  },
+  {
+    "id": "8835abf7-0f7f-4e88-b387-ed647363d4cd",
+    "name": "新项目测试",
+    "path": "/Users/apple/Desktop/新项目测试",
+    "conversations": []
+  },
+  {
+    "id": "5f6d03c4-610e-4e82-8ac9-ce698433fa2c",
+    "name": "test2",
+    "path": "/Users/apple/Desktop/test2",
+    "conversations": []
+  }
+]

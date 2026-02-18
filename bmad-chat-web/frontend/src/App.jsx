@@ -1,0 +1,186 @@
+import { useState, useEffect } from 'react'
+import { fetchAgents, fetchProjects, createProject, fetchProjectFiles, sendChat } from './api'
+import FileExplorer from './components/FileExplorer'
+import ChatWindow from './components/ChatWindow'
+import NewProjectModal from './components/NewProjectModal'
+
+function App() {
+  const [agents, setAgents] = useState([])
+  const [projects, setProjects] = useState([])
+  const [currentProject, setCurrentProject] = useState(null)
+  const [currentAgent, setCurrentAgent] = useState(null)
+  const [files, setFiles] = useState([])
+  const [messages, setMessages] = useState([])
+  const [showNewProject, setShowNewProject] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // 加载角色和项目
+  useEffect(() => {
+    loadAgents()
+    loadProjects()
+  }, [])
+
+  // 当项目变化时加载文件和对话历史
+  useEffect(() => {
+    if (currentProject) {
+      loadFiles(currentProject.id)
+      // 加载对话历史
+      if (currentProject.conversations) {
+        setMessages(currentProject.conversations)
+      }
+    }
+  }, [currentProject])
+
+  async function loadAgents() {
+    const data = await fetchAgents()
+    setAgents(data)
+    if (data.length > 0) {
+      setCurrentAgent(data[0])
+    }
+  }
+
+  async function loadProjects() {
+    const data = await fetchProjects()
+    setProjects(data)
+    if (data.length > 0) {
+      setCurrentProject(data[0])
+    }
+  }
+
+  async function loadFiles(projectId) {
+    const data = await fetchProjectFiles(projectId)
+    setFiles(data)
+  }
+
+  async function handleCreateProject(name, path) {
+    try {
+      const project = await createProject(name, path)
+      project.conversations = []
+      setProjects([...projects, project])
+      setCurrentProject(project)
+      setMessages([])
+      setShowNewProject(false)
+    } catch (error) {
+      console.error('Error creating project:', error)
+      alert('创建项目失败: ' + error.message)
+    }
+  }
+
+  async function handleSendMessage(content) {
+    if (!currentProject || !currentAgent) {
+      alert('请先创建项目并选择角色')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // 使用当前消息状态构建历史
+      const currentMessages = [...messages]
+      const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
+
+      // 添加用户消息到临时列表（用于显示）
+      const userMsg = { role: 'user', content }
+      setMessages([...currentMessages, userMsg])
+
+      const response = await sendChat(
+        currentProject.id,
+        currentAgent.id,
+        content,
+        history
+      )
+
+      // 添加 AI 回复
+      const aiMsg = { role: 'assistant', content: response.reply }
+      setMessages([...currentMessages, userMsg, aiMsg])
+
+      // 刷新文件列表
+      loadFiles(currentProject.id)
+    } catch (error) {
+      console.error('Error sending message:', error)
+      alert('发送消息失败: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="app">
+      {/* Header */}
+      <header className="header">
+        <div className="header-left">
+          <h1>BMad AI 助手</h1>
+        </div>
+        <div className="header-center">
+          {/* 项目选择 */}
+          <select
+            className="project-select"
+            value={currentProject?.id || ''}
+            onChange={(e) => {
+              const p = projects.find(p => p.id === e.target.value)
+              setCurrentProject(p)
+              setMessages([])
+            }}
+          >
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+
+          {/* 角色选择 */}
+          <div className="agent-buttons">
+            {agents.map(agent => (
+              <button
+                key={agent.id}
+                className={`agent-btn ${currentAgent?.id === agent.id ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentAgent(agent)
+                  setMessages([])
+                }}
+                title={agent.title}
+              >
+                {agent.icon} {agent.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="header-right">
+          <button className="new-project-btn" onClick={() => setShowNewProject(true)}>
+            + 新建项目
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="main">
+        {/* 左侧：文件浏览器 */}
+        <aside className="sidebar">
+          <FileExplorer
+            files={files}
+            onRefresh={() => currentProject && loadFiles(currentProject.id)}
+          />
+        </aside>
+
+        {/* 右侧：聊天窗口 */}
+        <section className="chat-section">
+          <ChatWindow
+            messages={messages}
+            currentAgent={currentAgent}
+            onSendMessage={handleSendMessage}
+            loading={loading}
+          />
+        </section>
+      </main>
+
+      {/* 新建项目弹窗 */}
+      {showNewProject && (
+        <NewProjectModal
+          onClose={() => setShowNewProject(false)}
+          onCreate={handleCreateProject}
+        />
+      )}
+    </div>
+  )
+}
+
+export default App
