@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
+function ChatWindow({ messages, onSendMessage, loading }) {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
 
@@ -23,17 +23,6 @@ function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
     }
   }
 
-  if (!currentAgent) {
-    return (
-      <div className="chat-window">
-        <div className="empty-state">
-          <span style={{ fontSize: '48px' }}>🤖</span>
-          <p>请选择一个角色开始对话</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="chat-window">
       <div className="messages">
@@ -41,12 +30,10 @@ function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
         {messages.length === 0 && (
           <div className="message assistant">
             <div className="message-header">
-              <span>{currentAgent.icon}</span>
-              <span>{currentAgent.name}</span>
+              <span>🤖</span>
+              <span>Claude CLI</span>
             </div>
-            你好！我是 {currentAgent.name}，{currentAgent.title}。
-            {currentAgent.whenToUse && `\n\n我可以帮你：${currentAgent.whenToUse}`}
-            有什么我可以帮你的吗？
+            你好！我是 Claude CLI，有什么我可以帮你的吗？
           </div>
         )}
 
@@ -55,8 +42,8 @@ function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
           <div key={index} className={`message ${msg.role}`}>
             {msg.role === 'assistant' && (
               <div className="message-header">
-                <span>{currentAgent.icon}</span>
-                <span>{currentAgent.name}</span>
+                <span>🤖</span>
+                <span>Claude CLI</span>
               </div>
             )}
             {msg.content}
@@ -67,8 +54,8 @@ function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
         {loading && (
           <div className="message assistant">
             <div className="message-header">
-              <span>{currentAgent.icon}</span>
-              <span>{currentAgent.name}</span>
+              <span>🤖</span>
+              <span>Claude CLI</span>
             </div>
             <div className="typing">
               <span></span>
@@ -87,7 +74,7 @@ function ChatWindow({ messages, currentAgent, onSendMessage, loading }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`向 ${currentAgent.name} 提问...`}
+          placeholder="向 Claude CLI 提问..."
           disabled={loading}
         />
         <button type="submit" disabled={!input.trim() || loading}>
