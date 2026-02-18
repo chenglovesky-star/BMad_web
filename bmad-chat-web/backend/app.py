@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import subprocess
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -10,6 +11,7 @@ from agents.loader import load_agents, get_agent_by_id
 from agents.prompts import build_system_prompt
 from store import store
 from config import ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY, MODEL_NAME
+from claude.cli_discovery import get_claude_cli_path
 
 app = Flask(__name__)
 CORS(app)
@@ -20,8 +22,8 @@ client = Anthropic(
     api_key=ANTHROPIC_API_KEY
 )
 
-# 会话存储（内存中）
-sessions = {}
+# Claude CLI 会话管理器
+claude_session_id = None
 
 # 定义工具列表
 TOOLS = [
@@ -468,6 +470,95 @@ def chat_stream():
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return generate(), {'Content-Type': 'text/event-stream'}
+
+
+@app.route('/api/claude/start', methods=['POST'])
+def start_claude():
+    """启动 Claude CLI 会话（验证 CLI 可用性）"""
+    from claude.cli_discovery import get_claude_cli_path
+
+    cli_path = get_claude_cli_path()
+    if not cli_path:
+        return jsonify({'error': '未找到 Claude CLI'}), 404
+
+    global claude_session_id
+    claude_session_id = str(time.time())
+
+    return jsonify({
+        'sessionId': claude_session_id,
+        'status': 'ready',
+        'mode': 'print'
+    })
+
+
+@app.route('/api/claude/chat', methods=['POST'])
+def claude_chat():
+    """发送消息到 Claude CLI（使用 -p 模式）"""
+    from claude.cli_discovery import get_claude_cli_path
+
+    cli_path = get_claude_cli_path()
+    if not cli_path:
+        return jsonify({'error': '未找到 Claude CLI'}), 404
+
+    data = request.json
+    message = data.get('message', '')
+
+    if not message:
+        return jsonify({'error': '消息不能为空'}), 400
+
+    working_dir = data.get('workingDir')
+
+    try:
+        # 使用 -p 模式进行非交互式对话
+        cmd = [str(cli_path), '-p', message]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=working_dir
+        )
+
+        reply = result.stdout if result.stdout else result.stderr
+
+        return jsonify({
+            'reply': reply,
+            'sessionId': claude_session_id
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': '请求超时'}), 504
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/claude/stop', methods=['POST'])
+def stop_claude():
+    """停止 Claude CLI 会话（无状态，直接返回）"""
+    return jsonify({'status': 'stopped'})
+
+
+@app.route('/api/claude/status', methods=['GET'])
+def claude_status():
+    """获取 Claude CLI 状态"""
+    from claude.cli_discovery import get_claude_cli_path
+
+    cli_path = get_claude_cli_path()
+    if cli_path:
+        return jsonify({
+            'status': 'ready',
+            'mode': 'print',
+            'sessionId': claude_session_id,
+            'cliPath': str(cli_path)
+        })
+    else:
+        return jsonify({
+            'status': 'not_found',
+            'mode': None,
+            'sessionId': None
+        })
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

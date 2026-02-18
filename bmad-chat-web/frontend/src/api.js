@@ -66,3 +66,45 @@ export async function readFile(filePath) {
   }
   return res.json();
 }
+
+export async function startClaude(mode = 'local', workingDir = null) {
+  const res = await fetch(`${API_BASE}/claude/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode, workingDir })
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || '启动 Claude CLI 失败');
+  }
+  return res.json();
+}
+
+export async function sendClaudeChat(message) {
+  const res = await fetch(`${API_BASE}/claude/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message })
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || '发送消息失败');
+  }
+  return res.json();
+}
+
+export async function stopClaude() {
+  const res = await fetch(`${API_BASE}/claude/stop`, {
+    method: 'POST'
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || '停止 Claude CLI 失败');
+  }
+  return res.json();
+}
+
+export async function getClaudeStatus() {
+  const res = await fetch(`${API_BASE}/claude/status`);
+  return res.json();
+}
