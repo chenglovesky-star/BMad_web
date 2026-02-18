@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from anthropic import Anthropic
+from anthropic.types import ToolUseBlock
 from agents.loader import load_agents, get_agent_by_id
 from agents.prompts import build_system_prompt
 from store import store
@@ -21,6 +22,127 @@ client = Anthropic(
 
 # 会话存储（内存中）
 sessions = {}
+
+# 定义工具列表
+TOOLS = [
+    {
+        "name": "write_file",
+        "description": "写入内容到指定文件。如果文件不存在则创建，如果文件已存在则覆盖内容。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "文件路径，例如: /Users/apple/project/test.md"},
+                "content": {"type": "string", "description": "要写入的文件内容"}
+            },
+            "required": ["file_path", "content"]
+        }
+    },
+    {
+        "name": "read_file",
+        "description": "读取指定文件的内容并返回。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "文件路径，例如: /Users/apple/project/test.md"}
+            },
+            "required": ["file_path"]
+        }
+    },
+    {
+        "name": "list_directory",
+        "description": "列出指定目录下的所有文件和子目录。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "directory_path": {"type": "string", "description": "目录路径"}
+            },
+            "required": ["directory_path"]
+        }
+    },
+    {
+        "name": "get_working_directory",
+        "description": "获取当前工作目录的路径。",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    }
+]
+
+
+def execute_tool(tool_name, tool_input, project_path=None):
+    """执行工具调用"""
+    try:
+        if tool_name == "write_file":
+            file_path = tool_input.get("file_path")
+            content = tool_input.get("content", "")
+
+            # 安全检查：防止路径遍历
+            if ".." in file_path:
+                return {"error": "无效的路径"}
+
+            # 确保目录存在
+            dir_path = os.path.dirname(file_path)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+
+            # 写入文件
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            return {"success": True, "message": f"文件已写入: {file_path}"}
+
+        elif tool_name == "read_file":
+            file_path = tool_input.get("file_path")
+
+            # 安全检查
+            if ".." in file_path:
+                return {"error": "无效的路径"}
+
+            if not os.path.exists(file_path):
+                return {"error": "文件不存在"}
+
+            if os.path.isdir(file_path):
+                return {"error": "不能读取目录"}
+
+            # 限制文件大小
+            file_size = os.path.getsize(file_path)
+            if file_size > 500 * 1024:
+                return {"error": "文件太大，无法读取"}
+
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            return {"content": content, "size": file_size}
+
+        elif tool_name == "list_directory":
+            dir_path = tool_input.get("directory_path")
+
+            if not os.path.exists(dir_path):
+                return {"error": "目录不存在"}
+
+            if not os.path.isdir(dir_path):
+                return {"error": "不是有效的目录"}
+
+            items = []
+            for item in os.listdir(dir_path):
+                item_path = os.path.join(dir_path, item)
+                items.append({
+                    "name": item,
+                    "type": "directory" if os.path.isdir(item_path) else "file"
+                })
+
+            return {"items": items}
+
+        elif tool_name == "get_working_directory":
+            return {"path": project_path or os.getcwd()}
+
+        else:
+            return {"error": f"未知工具: {tool_name}"}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 def get_file_info(path):
     """获取文件详细信息"""
@@ -176,7 +298,7 @@ def read_file():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """发送聊天消息"""
+    """发送聊天消息（支持工具调用）"""
     data = request.json
     project_id = data.get('projectId')
     agent_id = data.get('agentId')
@@ -191,8 +313,20 @@ def chat():
     if not agent:
         return jsonify({'error': '角色不存在'}), 404
 
+    # 获取项目路径
+    project = store.get_project(project_id)
+    project_path = project.get('path') if project else None
+
     # 构建 system prompt
     system_prompt = build_system_prompt(agent)
+    # 添加工具使用说明
+    system_prompt += "\n\n你可以使用以下工具来帮助用户：\n"
+    system_prompt += "- write_file: 写入文件\n"
+    system_prompt += "- read_file: 读取文件\n"
+    system_prompt += "- list_directory: 列出目录\n"
+    system_prompt += "- get_working_directory: 获取当前工作目录\n"
+    if project_path:
+        system_prompt += f"\n当前工作目录: {project_path}\n"
 
     # 构建消息列表
     messages = []
@@ -207,18 +341,60 @@ def chat():
     })
 
     try:
-        response = client.messages.create(
-            model=MODEL_NAME,
-            max_tokens=4096,
-            system=system_prompt,
-            messages=messages
-        )
+        # 最多进行 5 轮工具调用
+        max_iterations = 5
+        for iteration in range(max_iterations):
+            response = client.messages.create(
+                model=MODEL_NAME,
+                max_tokens=4096,
+                system=system_prompt,
+                messages=messages,
+                tools=TOOLS
+            )
 
-        # 提取回复内容
-        reply = ""
-        for block in response.content:
-            if hasattr(block, 'text'):
-                reply += block.text
+            # 检查是否有工具调用
+            tool_uses = []
+            text_content = []
+
+            for block in response.content:
+                if hasattr(block, 'type') and block.type == 'tool_use':
+                    tool_uses.append(block)
+                elif hasattr(block, 'text'):
+                    text_content.append(block.text)
+
+            # 如果没有工具调用，处理文本回复并结束
+            if not tool_uses:
+                reply = "".join(text_content)
+                break
+
+            # 处理工具调用
+            for tool_use in tool_uses:
+                tool_name = tool_use.name
+                tool_input = tool_use.input
+                tool_id = tool_use.id
+
+                # 首先，将 AI 的工具调用作为助手消息添加到历史
+                messages.append({
+                    'role': 'assistant',
+                    'content': [tool_use.model_dump()]
+                })
+
+                # 执行工具
+                result = execute_tool(tool_name, tool_input, project_path)
+
+                # 将工具结果添加到消息列表
+                messages.append({
+                    'role': 'user',
+                    'content': [
+                        {
+                            'type': 'tool_result',
+                            'tool_use_id': tool_id,
+                            'content': json.dumps(result)
+                        }
+                    ]
+                })
+
+            # 继续循环，让 AI 根据工具结果生成回复
 
         # 保存对话到项目
         conversation = {
