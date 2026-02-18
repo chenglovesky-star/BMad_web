@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAgents, fetchProjects, createProject, fetchProjectFiles, sendChat, readFile } from './api'
+import { fetchAgents, fetchProjects, createProject, fetchProjectFiles, readFile, startClaude, sendClaudeChat, getClaudeStatus } from './api'
 import FileExplorer from './components/FileExplorer'
 import ChatWindow from './components/ChatWindow'
 import NewProjectModal from './components/NewProjectModal'
@@ -10,7 +10,6 @@ function App() {
   const [agents, setAgents] = useState([])
   const [projects, setProjects] = useState([])
   const [currentProject, setCurrentProject] = useState(null)
-  const [currentAgent, setCurrentAgent] = useState(null)
   const [files, setFiles] = useState([])
   const [messages, setMessages] = useState([])
   const [showNewProject, setShowNewProject] = useState(false)
@@ -18,30 +17,36 @@ function App() {
   const [previewFile, setPreviewFile] = useState(null)
   const [previewContent, setPreviewContent] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [claudeReady, setClaudeReady] = useState(false)
+  const [claudeStatus, setClaudeStatus] = useState(null)
 
   // 加载角色和项目
   useEffect(() => {
     loadAgents()
     loadProjects()
+    initClaude()
   }, [])
 
-  // 当项目变化时加载文件和对话历史
+  // 当项目变化时加载文件
   useEffect(() => {
     if (currentProject) {
       loadFiles(currentProject.id)
-      // 加载对话历史
-      if (currentProject.conversations) {
-        setMessages(currentProject.conversations)
-      }
     }
   }, [currentProject])
+
+  async function initClaude() {
+    try {
+      const status = await startClaude('local')
+      setClaudeReady(status.status === 'ready')
+      setClaudeStatus(status)
+    } catch (e) {
+      console.error('Claude CLI 启动失败:', e)
+    }
+  }
 
   async function loadAgents() {
     const data = await fetchAgents()
     setAgents(data)
-    if (data.length > 0) {
-      setCurrentAgent(data[0])
-    }
   }
 
   async function loadProjects() {
@@ -91,35 +96,25 @@ function App() {
   }
 
   async function handleSendMessage(content) {
-    if (!currentProject || !currentAgent) {
-      alert('请先创建项目并选择角色')
+    if (!claudeReady) {
+      alert('Claude CLI 未就绪')
       return
     }
 
     setLoading(true)
 
     try {
-      // 使用当前消息状态构建历史
-      const currentMessages = [...messages]
-      const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
-
-      // 添加用户消息到临时列表（用于显示）
       const userMsg = { role: 'user', content }
-      setMessages([...currentMessages, userMsg])
+      setMessages(prev => [...prev, userMsg])
 
-      const response = await sendChat(
-        currentProject.id,
-        currentAgent.id,
-        content,
-        history
-      )
+      const response = await sendClaudeChat(content, currentProject?.path)
 
-      // 添加 AI 回复
       const aiMsg = { role: 'assistant', content: response.reply }
-      setMessages([...currentMessages, userMsg, aiMsg])
+      setMessages(prev => [...prev, aiMsg])
 
-      // 刷新文件列表
-      loadFiles(currentProject.id)
+      if (currentProject) {
+        loadFiles(currentProject.id)
+      }
     } catch (error) {
       console.error('Error sending message:', error)
       alert('发送消息失败: ' + error.message)
@@ -151,21 +146,9 @@ function App() {
             ))}
           </select>
 
-          {/* 角色选择 */}
-          <div className="agent-buttons">
-            {agents.map(agent => (
-              <button
-                key={agent.id}
-                className={`agent-btn ${currentAgent?.id === agent.id ? 'active' : ''}`}
-                onClick={() => {
-                  setCurrentAgent(agent)
-                  setMessages([])
-                }}
-                title={agent.title}
-              >
-                {agent.icon} {agent.name}
-              </button>
-            ))}
+          {/* Claude CLI 状态 */}
+          <div className={`claude-status ${claudeReady ? 'ready' : 'not-ready'}`}>
+            {claudeReady ? '✓ Claude CLI 就绪' : '⏳ 初始化中...'}
           </div>
         </div>
         <div className="header-right">
@@ -190,7 +173,6 @@ function App() {
         <section className="chat-section">
           <ChatWindow
             messages={messages}
-            currentAgent={currentAgent}
             onSendMessage={handleSendMessage}
             loading={loading}
           />

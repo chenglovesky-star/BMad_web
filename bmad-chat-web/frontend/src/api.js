@@ -80,11 +80,11 @@ export async function startClaude(mode = 'local', workingDir = null) {
   return res.json();
 }
 
-export async function sendClaudeChat(message) {
+export async function sendClaudeChat(message, workingDir = null) {
   const res = await fetch(`${API_BASE}/claude/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message, workingDir })
   });
   if (!res.ok) {
     const error = await res.json();
