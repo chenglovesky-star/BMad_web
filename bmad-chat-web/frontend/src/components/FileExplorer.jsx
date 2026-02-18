@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function FileExplorer({ files, onRefresh }) {
+function FileExplorer({ files, onRefresh, onFileClick }) {
   const [expandedDirs, setExpandedDirs] = useState({})
 
   const getFileIcon = (filename) => {
@@ -109,7 +109,13 @@ function FileExplorer({ files, onRefresh }) {
       <div key={file.path + index} style={{ marginLeft: level * 12 }}>
         <div
           className={`file-item ${file.type === 'directory' ? 'directory' : ''}`}
-          onClick={() => file.type === 'directory' && toggleDir(file.path)}
+          onClick={() => {
+            if (file.type === 'directory') {
+              toggleDir(file.path)
+            } else if (onFileClick) {
+              onFileClick(file)
+            }
+          }}
         >
           {file.type === 'directory' ? (
             <>

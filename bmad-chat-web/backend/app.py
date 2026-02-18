@@ -131,6 +131,49 @@ def get_project_files(project_id):
     files = get_file_tree(path, recursive=recursive)
     return jsonify(files)
 
+@app.route('/api/files/read', methods=['GET'])
+def read_file():
+    """读取文件内容"""
+    file_path = request.args.get('path')
+    if not file_path:
+        return jsonify({'error': '文件路径不能为空'}), 400
+
+    # 安全检查：防止路径遍历攻击（只检查 ..）
+    if '..' in file_path:
+        return jsonify({'error': '无效的路径'}), 400
+
+    # 检查文件是否存在
+    if not os.path.exists(file_path):
+        return jsonify({'error': '文件不存在'}), 404
+
+    if os.path.isdir(file_path):
+        return jsonify({'error': '不能读取目录'}), 400
+
+    # 限制文件大小（最大 500KB）
+    file_size = os.path.getsize(file_path)
+    if file_size > 500 * 1024:
+        return jsonify({'error': '文件太大，无法预览'}), 400
+
+    # 读取文件内容
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # 获取文件扩展名
+        ext = os.path.splitext(file_path)[1].lstrip('.')
+
+        return jsonify({
+            'path': file_path,
+            'name': os.path.basename(file_path),
+            'ext': ext,
+            'size': file_size,
+            'content': content
+        })
+    except UnicodeDecodeError:
+        return jsonify({'error': '无法读取二进制文件'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """发送聊天消息"""

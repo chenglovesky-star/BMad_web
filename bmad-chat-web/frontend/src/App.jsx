@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { fetchAgents, fetchProjects, createProject, fetchProjectFiles, sendChat } from './api'
+import { fetchAgents, fetchProjects, createProject, fetchProjectFiles, sendChat, readFile } from './api'
 import FileExplorer from './components/FileExplorer'
 import ChatWindow from './components/ChatWindow'
 import NewProjectModal from './components/NewProjectModal'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 function App() {
   const [agents, setAgents] = useState([])
@@ -13,6 +15,9 @@ function App() {
   const [messages, setMessages] = useState([])
   const [showNewProject, setShowNewProject] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewContent, setPreviewContent] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   // 加载角色和项目
   useEffect(() => {
@@ -50,6 +55,25 @@ function App() {
   async function loadFiles(projectId) {
     const data = await fetchProjectFiles(projectId)
     setFiles(data)
+  }
+
+  async function handleFileClick(file) {
+    setPreviewFile(file)
+    setPreviewLoading(true)
+    try {
+      const content = await readFile(file.path)
+      setPreviewContent(content)
+    } catch (error) {
+      alert('读取文件失败: ' + error.message)
+      setPreviewFile(null)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  function closePreview() {
+    setPreviewFile(null)
+    setPreviewContent(null)
   }
 
   async function handleCreateProject(name, path) {
@@ -158,6 +182,7 @@ function App() {
           <FileExplorer
             files={files}
             onRefresh={() => currentProject && loadFiles(currentProject.id)}
+            onFileClick={handleFileClick}
           />
         </aside>
 
@@ -178,6 +203,35 @@ function App() {
           onClose={() => setShowNewProject(false)}
           onCreate={handleCreateProject}
         />
+      )}
+
+      {/* 文件预览弹窗 */}
+      {previewFile && (
+        <div className="modal-overlay" onClick={closePreview}>
+          <div className="modal file-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <h3>{previewFile.name}</h3>
+              <button className="close-btn" onClick={closePreview}>×</button>
+            </div>
+            <div className="preview-content">
+              {previewLoading ? (
+                <div className="loading">加载中...</div>
+              ) : previewContent ? (
+                previewContent.ext === 'md' || previewContent.name.endsWith('.md') ? (
+                  <div className="markdown-preview">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {previewContent.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <pre><code>{previewContent.content}</code></pre>
+                )
+              ) : (
+                <div className="error">无法预览此文件</div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

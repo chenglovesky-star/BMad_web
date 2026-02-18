@@ -56,3 +56,13 @@ export async function sendChatStream(projectId, agentId, message, history) {
   });
   return res.body;
 }
+
+export async function readFile(filePath) {
+  const encodedPath = encodeURIComponent(filePath);
+  const res = await fetch(`${API_BASE}/files/read?path=${encodedPath}`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || '读取文件失败');
+  }
+  return res.json();
+}
